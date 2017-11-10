@@ -2,18 +2,21 @@ import pandas as pd;
 from sklearn import preprocessing;
 import scipy.stats as sp;
 from sklearn import decomposition;
-
+from DataFrameImputer import DataFrameImputer
 
 def dataPreprocessing(df):
 
     #imp = preprocessing.Imputer(missing_values='NaN', strategy='most_frequent', axis=0, verbose=1)
     #imp.fit(df)
-    df = df.apply(preprocessing.LabelEncoder().fit_transform)
+
+    imputerResult = DataFrameImputer().fit_transform(df)
+
+    imputerResult = imputerResult.apply(preprocessing.LabelEncoder().fit_transform)
     #df=df.apply(preprocessing.StandardScaler().fit_transform)
     #df=df.apply(preprocessing.MinMaxScaler().fit_transform)
-    return df
+    return imputerResult
 
-def featureSelection(df, k):
+def featureSelection(df):
     # feature selection based on chi square
     listPVal = []
     for i in range(len(df.columns) - 1):
@@ -24,9 +27,10 @@ def featureSelection(df, k):
         if (listPVal[i] > 0.005):
             df.drop(df.columns[i], axis=1, inplace=True)
     print("now the column number is ", df.shape[1])
+    k=int(input("how many feature numbers you want to keep?"))
     data = df.iloc[:,:len(df.columns)-1]
     Y=df.iloc[:,len(df.columns)-1]
-    Xdata=pd.DataFrame(data)
+    #Xdata=pd.DataFrame(data)
     pca = decomposition.PCA(n_components=k)
     pca.fit(data)
     Xdata = pd.DataFrame(pca.transform(data))
@@ -35,3 +39,11 @@ def featureSelection(df, k):
 
 def most_common(lst):
     return max(set(lst), key=lst.count)
+
+def getX(df):
+    k = df.shape[1]-1
+    return df.drop(k, 1).values
+
+def getY(df):
+    k = df.shape[1]-1
+    return df[k].values.astype(int)

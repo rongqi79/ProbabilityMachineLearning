@@ -17,17 +17,14 @@ import util
 
 class NewClassifier():
 
-    def __init__(self, data_name,feature_number):
+    def __init__(self, data_name):
        self.data_name=data_name
-       self.feature_number=feature_number
+
 
 
     def fit(self, X, Y):
-    # naive bayers
-        clf_nb = naive_bayes.GaussianNB()
-        nb_result = cross_val_score(clf_nb, X, Y, cv=5).mean()
-        predict_nb = cross_val_predict(clf_nb, X, Y, cv=5)
-        print("naive bayes result is : ", nb_result)
+        self.feature_number=X.shape[1]
+
 
 
         def fileExist(data_name, feature_number, algo):
@@ -36,6 +33,23 @@ class NewClassifier():
             filename_suffix = 'model'
             pathfile = os.path.join(cwd, filename + "." + filename_suffix)
             return os.path.isfile(pathfile)
+
+        # naive bayers
+        clf_nb = naive_bayes.GaussianNB()
+        nb_result = cross_val_score(clf_nb, X, Y, cv=5).mean()
+        predict_nb = cross_val_predict(clf_nb, X, Y, cv=5)
+        print("naive bayes result is : ", nb_result)
+
+        clf_nb.fit(X, Y)
+        if (fileExist(self.data_name, self.feature_number, "Gaussi") == False):
+            extra_name = self.data_name
+            filename = extra_name + str(clf_nb)[:6] + str(self.feature_number)
+            cwd = os.getcwd()
+            filename_suffix = 'model'
+            pathfile = os.path.join(cwd, filename + "." + filename_suffix)
+            with open(pathfile, "wb") as fp:
+                pickle.dump(clf_nb, fp)
+
 
         def run_gridsearch(X, y, clf, param_grid,cv=5 ):
             """Run a grid search for best Decision Tree parameters.
@@ -114,7 +128,7 @@ class NewClassifier():
                 print("parameter: {:<20s} setting: {}".format(k, v))
 
     # svm
-        '''if (fileExist(data_name, feature_number, "Decisi") == False):
+        if (fileExist(self.data_name, self.feature_number, "SVC(C=") == False):
             print("-- svm Grid Parameter Search via 10-fold CV")
             tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1e-3, 1e-4],
                          'C': [1, 10, 100, 1000]},
@@ -124,7 +138,7 @@ class NewClassifier():
 
             print("\n-- svm Best Parameters:")
             for k, v in svmGrid.items():
-                print("parameter: {:<20s} setting: {}".format(k, v))'''
+                print("parameter: {:<20s} setting: {}".format(k, v))
 
     #logistic regression
         if (fileExist(self.data_name, self.feature_number, "Logist")==False):
@@ -152,7 +166,7 @@ class NewClassifier():
 
 
 
-    def score(self, X, Y):
+    def sortedResult(self, X, Y):
         # Load model from file
         filename = self.data_name + "Decisi" + str(self.feature_number)
         cwd = os.getcwd()
@@ -167,6 +181,22 @@ class NewClassifier():
         print(dt_result)
         accuracydt = accuracy_score(Y, predict_dt)
         print("decision tree accuracy is : ", accuracydt)
+
+        # Predict naive bayes with model loaded from disk
+        # Load model from file
+        filename = self.data_name + "Gaussi" + str(self.feature_number)
+        cwd = os.getcwd()
+        filename_suffix = 'model'
+        pathfile = os.path.join(cwd, filename + "." + filename_suffix)
+        with open(pathfile, "rb") as fp:
+            grid_search_load = pickle.load(fp)
+        nb_result = grid_search_load.score(X, Y)
+        predict_nb = grid_search_load.predict(X)
+        print(nb_result)
+        accuracynb = accuracy_score(Y, predict_nb)
+        print("naive bayes accuracy is : ", accuracynb)
+
+
 
         # Load model from random Forrest
         filename = self.data_name + "Random" + str(self.feature_number)
@@ -199,7 +229,7 @@ class NewClassifier():
         print("logistic regression accuracy is : ", accuracylr)
 
         # Load model from svm
-        filename = self.data_name + "SVC(C="
+        filename = self.data_name + "SVC(C="+str(self.feature_number)
         cwd = os.getcwd()
         filename_suffix = 'model'
         pathfile = os.path.join(cwd, filename + "." + filename_suffix)
@@ -213,27 +243,20 @@ class NewClassifier():
         accuracysvm = accuracy_score(Y, predict_svm)
         print("svm accuracy is : ", accuracysvm)
 
-        # naive bayers
-        clf_nb = naive_bayes.GaussianNB()
-        nb_result = cross_val_score(clf_nb, X, Y, cv=5).mean()
-        predict_nb = cross_val_predict(clf_nb, X, Y, cv=5)
-        print("naive bayes accuracy is : ", nb_result)
 
 
         result = {'score': [svm_result, rf_result, lr_result, dt_result, nb_result],
                   'predict': [predict_svm, predict_rf, predict_lr, predict_dt, predict_nb]}
-        dfResult = pd.DataFrame(result,
+        self.dfResult = pd.DataFrame(result,
                                 index=['svm', 'random forrest', 'logistic regression', 'decision tree', 'naive bayes'])
         # print(dfResult)
-        dfResult.sort_values(by=['score'], inplace=True, ascending=0)
-        print(dfResult)
-        topPrediction = dfResult.iloc[0, 1]
-        print("the top accuracy of machine learning algorithms is : ", topPrediction)
-        k = 3
-        self.predicitonTopK = dfResult.iloc[0:k + 1, 0]
+        self.dfResult.sort_values(by=['score'], inplace=True, ascending=0)
+        print(self.dfResult)
+        topPrediction = self.dfResult.iloc[0, 1]
+        print("the top accuracy of machine learning algorithms is : ", self.dfResult.first_valid_index() ,topPrediction)
 
 
-    def predict(self, X, Y, k):
+    '''def predict(self, X, Y, k):
         s2 = []
         for i in range(len(Y)):
             temp = 0
@@ -245,18 +268,23 @@ class NewClassifier():
                 s2.append(0)
         myarray = np.asarray(s2)
         myAccuracy = accuracy_score(Y, myarray)
-        print("my accuracy is :", myAccuracy)
+        print("my accuracy is :", myAccuracy)'''
+
+    def score(self, Y):
+        myScore = accuracy_score(Y, self.prediction )
+        print("my accuracy is :", myScore)
+
 
     def multiPredict(self, X, Y, k):
         s2 = []
+        predicitonTopK = self.dfResult.iloc[0:k + 1, 0]
         for i in range(len(Y)):
             temp=[]
             for j in range(k):
-                temp.append(self.predicitonTopK[j][i])
+                temp.append(predicitonTopK[j][i])
             s2.append(util.most_common(temp))
-        myarray = np.asarray(s2)
-        myAccuracy = accuracy_score(Y, myarray)
-        print("my accuracy is :", myAccuracy)
+        self.prediction = np.asarray(s2)
+
 
 
 
